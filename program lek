@@ -1,0 +1,129 @@
+
+
+
+#include <WiFi.h>
+#include <WiFiClient.h>
+#define BLYNK_TEMPLATE_ID "TMPL6cWnE-a1V"
+#define BLYNK_TEMPLATE_NAME "repi"
+#define BLYNK_AUTH_TOKEN "JT5QQycVqZVs-ubnY7d2sH_sZRalSRl_"
+#include <BlynkSimpleEsp32.h>
+#include <DHT.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27,20,4); 
+#define BLYNK_PRINT Serial 
+
+#define DHTTYPE DHT11
+#define DHTPIN 13
+#define RELAY_PIN 2
+
+DHT dht(DHTPIN, DHTTYPE);
+
+float humidity, temp;                
+unsigned long previousMillis = 0;
+const long interval = 15000;     
+int pinAuto, pinManual;   
+
+char auth[] = "JT5QQycVqZVs-ubnY7d2sH_sZRalSRl_"; 
+char ssid[] = "Redmi Note 11";
+char pass[] = "00000000"; // Jika tidak menggunakan password kosongkan ""
+
+
+void setup()
+{
+  
+  pinMode(RELAY_PIN, OUTPUT);
+  Blynk.begin(auth, ssid, pass);
+  dht.begin();
+  Serial.begin(9600);
+  lcd.init();
+  lcd.backlight();
+  
+ 
+}
+
+bool isFirstConnect = true;
+
+BLYNK_CONNECTED() {
+  if (isFirstConnect)
+  {
+    Blynk.syncAll();
+    isFirstConnect = false;
+  }
+}
+
+void loop()
+{
+
+  Blynk.run();
+  lcd.setCursor(0,0);
+  lcd.print("Kelembapan=");
+  lcd.print(humidity);
+  lcd.print(" %");
+  lcd.setCursor(0,1);
+  lcd.print("Suhu=");
+  lcd.print(temp);
+  lcd.print(" C");
+ 
+  if (pinAuto == 1)
+  {
+    if(temp>=35)
+    {
+      digitalWrite(RELAY_PIN, HIGH);
+    }
+    else
+    {
+      digitalWrite(RELAY_PIN, LOW);
+    }
+  }
+  else
+  {
+    if(pinManual==1)
+    {
+      digitalWrite(RELAY_PIN, HIGH);
+      Serial.println("ON");
+    }
+    else
+    {
+      digitalWrite(RELAY_PIN, LOW);
+    }
+  }
+}
+BLYNK_WRITE(V3)
+ {
+  pinAuto = param.asInt(); // Mendapatkan nilai tombol (1 atau 0)
+ }
+  
+BLYNK_WRITE(V2)
+ {
+  pinManual = param.asInt(); // Mendapatkan nilai tombol (1 atau 0)
+ }
+
+void gettemperature() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+   
+    humidity = dht.readHumidity();        
+    temp = dht.readTemperature(); 
+    Blynk.virtualWrite(V0, temp);
+    Blynk.virtualWrite(V1, humidity);
+
+    
+    if (isnan(humidity) || isnan(temp)) {
+      Serial.println("Sensor Tidak Terbaca");
+      return;
+    }
+  }
+  lcd.setCursor(0,0);
+  lcd.print("Kelembapan=");
+  lcd.print(humidity);
+  lcd.print(" %");
+  lcd.setCursor(0,1);
+  lcd.print("Suhu=");
+  lcd.print(temp);
+  lcd.print(" C");
+}
